@@ -293,28 +293,33 @@
 
                 best_path = undefined;
 
+                // Searching the fastest combination for each joker_doom values
                 for (var v = 0; v < values.length; v++) {
-                    var tmp = cur;
-                    var path = [];
-
-                    // Adding actions while it fits
-                    var i = 0;
-                    while(tmp < values[v])
-                    {
-                        if (values[v] - tmp >= acts[i].value)
+                    // Searching the best combination for each subset of action
+                    for (var a = 0; a < acts.length; a++) {
+                            
+                        var tmp = cur;
+                        var path = [];
+                        
+                        // Adding actions while it fits
+                        var i = a;
+                        while(tmp < values[v])
                         {
-                            tmp += acts[i].value;
-                            path.push(acts[i]);
+                            if (values[v] - tmp >= acts[i].value)
+                            {
+                                tmp += acts[i].value;
+                                path.push(acts[i]);
+                            }
+                            else
+                            {
+                                i++;
+                            }
                         }
-                        else
-                        {
-                            i++;
-                        }
-                    }
 
-                    if(best_path === undefined || path.length < best_path.length)
-                    {
-                        best_path = path;
+                        if(best_path === undefined || path.length < best_path.length)
+                        {
+                            best_path = path;
+                        }
                     }
                 };
                 
