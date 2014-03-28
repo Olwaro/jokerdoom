@@ -13,6 +13,10 @@
             margin-left: 5px;
         }
 
+        .place_right {
+            margin-right: 10px;
+        }
+
         .summary {
             margin-left: 20px;
         }
@@ -73,7 +77,7 @@
                 <strong class="panel-title">What have you done so far ?</strong>
                 <div class="pull-right">
                     <span class="badge badge_highlight" data-bind="text: getTotalDone"></span>
-                    <span class="badge pointme place_left" data-bind="click: removeAll">Clear</span>
+                    <span class="badge pointme place_left" data-bind="click: removeAll, if: done().length > 0">Clear</span>
                 </div>
               </div>
               <ul class="list-group" data-bind="foreach: done">
@@ -93,7 +97,12 @@
                 <ul class="list-group" data-bind="foreach: actions">
                     <div class="lgn">
                         <div class="ignore"><input class="defme" type="checkbox" data-bind="checked: checked, enable: value != 1"/></div>
-                        <div class="action pointme" data-bind="click: $root.addAction"><span data-bind="text: name"></span></div>
+                        <div class="action pointme" data-bind="click: $root.addAction"><span data-bind="text: name"></span>
+                            <div class="pull-right place_right">
+                                <span class="badge" data-bind="text: value"></span>
+                            </div>
+                        </div>
+                        
                     </div>
                 </ul>
             </div>
@@ -106,7 +115,7 @@
                 <strong class="panel-title">What's next ?</strong>
                 <div class="pull-right">
                     <span class="badge badge_highlight" data-bind="text: getTotalTodo"></span>
-                    <span class="badge pointme place_left" data-bind="click: forecast">Refresh</span>
+                    <!-- <span class="badge pointme place_left" data-bind="click: forecast">Refresh</span> -->
                 </div>
               </div>
               <ul class="list-group" data-bind="foreach: todo">
@@ -139,28 +148,25 @@
             <ol>
                 <li>Select what you have already done with the middle column</li>
                 <li>Uncheck any items which is not in your inventory</li>
-                <li>Click 'refresh'</li>
                 <li>...</li>
                 <li>Profit!</li>
             </ol>
+            <br/>
             <h4>What are the possible values for 7-7-7 ?</h4>
-            <ul>
-                <li>16</li>
-                <li>46</li>
-                <li>87</li>
-                <li>102</li>
-                <li>141</li>
-                <li>228</li>
-                <li>250</li>
-            </ul>
+            <p>16 - 46 - 87 - 102 - 141 - 228 - 250</p>
+            <br/>
             <h4>Dafuq are all those numbers ?</h4>
             <p>Please read the exelent <a href="http://www.gamefaqs.com/ps/562865-final-fantasy-vi/faqs/43660">Master ZED's article</a> for a better understanding.</p>
+            <br/>
             <h4>Nothing happens when I click...</h4>
-            <p>Obviously, something is going wrong. Try refresh your browser (and when I say browser I mean a real up-to-date one)</p>
+            <p>Obviously, something is going wrong. Try refresh your browser (and when I say browser I mean a real up-to-date one). If you think that you found a bug, please inform me <a href="https://github.com/Olwaro/jokerdoom/issues">here</a> </p>
+            <br/>
             <h4>I can guess a faster combination than the one displayed</h4>
-            <p>Nobody's perfect. This app <strong>try to</strong> compute the fastest combination in terms of 'actions per character' and only using items and Lagomorph. Of course it would be more efficient to think in terms of 'turns' and taking into account all possible attack/magic/esper. We will come to this kids, consider this app as a <strong>beta</strong>.</p>
+            <p>Nobody's perfect. This app <strong>try to</strong> compute the fastest combination in terms of '<i>actions per character</i>' and only using items and Lagomorph. Of course it would be more efficient to think in terms of 'turns' and taking into account all possible attack/magic/esper. We will come to this kids, consider this app as a <strong>beta</strong>.</p>
+            <br/>
             <h4>What has motivated you in order to create this app ?</h4>
             <p>I saw <a href="https://twitter.com/mvcaster">mistermv</a> wasting a possible world record because of the Slot RNG manipulation. And all I wanted to say was <strong>NEVER AGAIN</strong> !  </p>
+            <br/>
             <h4>Credit</h4>
             <p>Created by <a href="https://twitter.com/olwaro">HNX</a>. Big up to Master ZED for his work.</p>
           </div>
@@ -184,11 +190,7 @@
             var self = this;
             self.name = name;
             self.value = value;
-            self.checked = true;
-
-            self.debug = function(){
-                alert(name);
-            }
+            self.checked = ko.observable(true);
         }
 
         // Logic behind the whole app 
@@ -285,7 +287,7 @@
 
                 // Sort available actions by decreasing values
                 acts = self.actions.filter(function(action) {
-                    return action.checked;
+                    return action.checked();
                 });
                 acts.sort(function(left, right) {
                     return left.value == right.value ? 0 : (left.value > right.value ? -1 : 1);
@@ -323,12 +325,22 @@
                     }
                 };
                 
-                for (var i = 0; i < best_path.length; i++) {
-                    self.todo.push(best_path[i]);
-                };
+                if(best_path != undefined)
+                {
+                    for (var i = 0; i < best_path.length; i++) {
+                        self.todo.push(best_path[i]);
+                    }
+                }
             }
             // Give me my Echo Screen pls
             self.forecast();
+
+            // Force automatic forcasting
+            for (var i = self.actions.length - 1; i >= 0; i--) {
+                self.actions[i].checked.subscribe(function(){
+                    self.forecast();
+                });
+            };
         }
 
         $(function() {
