@@ -76,7 +76,7 @@
               <div class="panel-heading" id="left" data-toggle="tooltip" data-placement="top" title="Select actions on the middle column !">
                 <strong class="panel-title">What have you done so far ?</strong>
                 <div class="pull-right">
-                    <span class="badge badge_highlight" data-bind="text: getTotalDone"></span>
+                    <span class="badge badge_highlight" data-bind="text: totalDone"></span>
                     <span class="badge pointme place_left" data-bind="click: removeAll, if: done().length > 0">Clear</span>
                 </div>
               </div>
@@ -114,7 +114,7 @@
               <div class="panel-heading">
                 <strong class="panel-title">What's next ?</strong>
                 <div class="pull-right">
-                    <span class="badge badge_highlight" data-bind="text: getTotalTodo"></span>
+                    <span class="badge badge_highlight" data-bind="text: totalTodo"></span>
                     <!-- <span class="badge pointme place_left" data-bind="click: forecast">Refresh</span> -->
                 </div>
               </div>
@@ -130,7 +130,7 @@
                 <div class="panel-heading"><strong class="panel-title">Summary</strong></div>
 
                 <h4 class="summary">
-                <span class="label badge_highlight" data-bind="text: getTotalDone"></span> + <span class="label badge_highlight" data-bind="text: getTotalTodo"></span> = <span class="label  label-success" data-bind="text: getSum"></span>
+                <span class="label badge_highlight" data-bind="text: totalDone"></span> + <span class="label badge_highlight" data-bind="text: totalTodo"></span> = <span class="label  label-success" data-bind="text: getSum"></span>
                 </h4>
             </div>
           </div>
@@ -161,8 +161,8 @@
             <h4>Nothing happens when I click...</h4>
             <p>Obviously, something is going wrong. Try refresh your browser (and when I say browser I mean a real up-to-date one). If you think that you found a bug, please inform me <a href="https://github.com/Olwaro/jokerdoom/issues">here</a> </p>
             <br/>
-            <h4>I can guess a faster combination than the one displayed</h4>
-            <p>Nobody's perfect. This app <strong>try to</strong> compute the fastest combination in terms of '<i>actions per character</i>' and only using items and Lagomorph. Of course it would be more efficient to think in terms of 'turns' and taking into account all possible attack/magic/esper. We will come to this kids, consider this app as a <strong>beta</strong>.</p>
+            <h4>I can guess a faster solution than the one displayed</h4>
+            <p>Nobody's perfect. This app <strong>try to</strong> compute the shortest solution in terms of '<i>actions per character</i>' and only using items and Lagomorph. Of course it would be more efficient to think in terms of 'turns' and taking into account all possible attack/magic/esper. We will come to this kids, consider this app as a <strong>beta</strong>.</p>
             <br/>
             <h4>What has motivated you in order to create this app ?</h4>
             <p>I saw <a href="https://twitter.com/mvcaster">mistermv</a> wasting a possible world record because of the Slot RNG manipulation. And all I wanted to say was <strong>NEVER AGAIN</strong> !  </p>
@@ -182,7 +182,7 @@
     <script src="static/js/knockout-3.1.0.js"></script>
 
     <script type="text/javascript">
-        // Possible values for 777
+         // Possible values for 777
         joker_values = [16, 46, 87, 102, 106, 141, 228, 250];
 
         // Action Model
@@ -190,7 +190,7 @@
             var self = this;
             self.name = name;
             self.value = value;
-            self.checked = ko.observable(true);
+            self.checked = ko.observable(true); // Make it observable to allow triggering on change
         }
 
         // Logic behind the whole app 
@@ -198,6 +198,9 @@
             var self = this;
 
             // All possible actions and their values
+            // TODO : - Add all possible action
+            //        - Sort by categories (item/attack/magic/esper/misc.)
+            //        - Adapt UI...
             self.actions = [
                 new Action('Tonic', 12), 
                 new Action('Potion', 12), 
@@ -215,7 +218,7 @@
                 new Action('Lagomorph', 1)
             ]; 
 
-            // Sort actions for better display (Execpt Lagomorph which will come first)
+            // Sort actions for better display (Except Lagomorph which will come first)
             self.actions.sort(function(left, right) {
                 if(left.name == "Lagomorph") return -1;
                 if(right.name == "Lagomorph") return 1;
@@ -230,23 +233,24 @@
             // What append when an action is added
             self.addAction = function(action) {
                 self.done.push(new Action(action.name, action.value));
-                self.forecast();
+                self.solve();
             }
             
             // What append when an action is removed
             self.removeAction = function(action) {
                 self.done.remove(action);
-                self.forecast();
+                self.solve();
             }
 
-            // Whipe the whole "done" list
+            // Wipe off the whole "done" list
             self.removeAll = function() {
                 self.done.removeAll();
-                self.forecast();
+                self.solve();
             }
 
-            // Computes where the RNG cursor is
-            self.getTotalDone = ko.computed(function() {
+            // Computes where the RNG cursor is.
+            // In practice : it sums the values of actions in 'done' list
+            self.totalDone = ko.computed(function() {
                 var len = this.done().length;
                 var sum = 0;
                 for(var i = 0; i < len; i++)
@@ -256,8 +260,9 @@
                 return sum % 256;
             }, this);
 
-            // Computes where the RNG cursor is
-            self.getTotalTodo = ko.computed(function() {
+            // Computes how much the RNG cursor need to be incremented to reach the next joker doom value
+            // In practice : it sums the values of actions in 'todo' list
+            self.totalTodo = ko.computed(function() {
                 var len = this.todo().length;
                 var sum = 0;
                 for(var i = 0; i < len; i++)
@@ -267,50 +272,64 @@
                 return sum;
             }, this);
 
+            // Sums totalDone and totalTodo
             self.getSum = ko.computed(function() {
-                return this.getTotalDone() + this.getTotalTodo();
+                return this.totalDone() + this.totalTodo();
             }, this);
 
-            // Computes the fastest path to the next 777
-            self.forecast = function() {
-                // Clear previous forecast
+            // Computes the shortest solution to the next joker doom value
+            // In my point of view, it's a variation of the Knapsack problem.
+            // This implementation use the Greedy approximation algorithm for each joker doom value and take the shortest solution.
+            // TODO : - Get the fastest solution (in terms of fight turns) instead of the shortest (in terms of actions)
+            //        - Take overflow into account (when cursor exeeds 255, it goes back to 0)
+            //        - Optimize (it's laggy on low cpu device)
+            self.solve = function() {
+
+                // Clear previous solution
                 self.todo.removeAll();
 
-                var cur = self.getTotalDone();
+                // Get current position
+                var current = self.totalDone();
 
-                if(joker_values.indexOf(cur) != -1) return;
+                // Halt here if we are already on a good value
+                if(joker_values.indexOf(current) != -1) return;
 
-
+                // Ignore joker values lower than then current position
+                // -- will be removed as soon as overflow is handled 
                 var values= joker_values.filter(function(v) {
-                    return v > cur;
+                    return v > current;
                 });
 
-                // Sort available actions by decreasing values
-                acts = self.actions.filter(function(action) {
+                // Filter unchecked actions
+                var acts = self.actions.filter(function(action) {
                     return action.checked();
                 });
+
+                // Sort actions by decreasing values
                 acts.sort(function(left, right) {
                     return left.value == right.value ? 0 : (left.value > right.value ? -1 : 1);
-                });
+                }
 
-                best_path = undefined;
+                var best_solution = undefined;
 
-                // Searching the fastest combination for each joker_doom values
+                // Iterate over each joker doom values
                 for (var v = 0; v < values.length; v++) {
-                    // Searching the best combination for each subset of action
+                    
+                    // Here is a slightly modified Greedy approximation algorithm
+                    // It tries over consecutives subset of actions (which has empirically proved better results) 
                     for (var a = 0; a < acts.length; a++) {
                             
-                        var tmp = cur;
-                        var path = [];
+                        var tmp = current;
+                        var solution = [];
                         
-                        // Adding actions while it fits
+                        // Add actions to the solution while it fits
                         var i = a;
                         while(tmp < values[v])
                         {
                             if (values[v] - tmp >= acts[i].value)
                             {
                                 tmp += acts[i].value;
-                                path.push(acts[i]);
+                                solution.push(acts[i]);
                             }
                             else
                             {
@@ -318,36 +337,42 @@
                             }
                         }
 
-                        if(best_path === undefined || path.length < best_path.length)
+                        // Keep the soltuion if it's shorter than the previous
+                        if(best_solution === undefined || solution.length < best_solution.length)
                         {
-                            best_path = path;
+                            best_solution = solution;
                         }
                     }
                 };
                 
-                if(best_path != undefined)
+                // Poulate the UI with the solution
+                if(best_solution != undefined)
                 {
-                    for (var i = 0; i < best_path.length; i++) {
-                        self.todo.push(best_path[i]);
+                    for (var i = 0; i < best_solution.length; i++) {
+                        self.todo.push(best_solution[i]);
                     }
                 }
             }
-            // Give me my Echo Screen pls
-            self.forecast();
 
-            // Force automatic forcasting
+            // Initial solve (if everything is ok, it gives just an Echo screen)
+            self.solve();
+
+            // Force automatic solving on action checking/unchecking
             for (var i = self.actions.length - 1; i >= 0; i--) {
                 self.actions[i].checked.subscribe(function(){
-                    self.forecast();
+                    self.solve();
                 });
             };
         }
 
+        // When everything is loaded
         $(function() {
-          $("#left").tooltip();
-          $("#middle").tooltip();
+            // Load tooltips
+            $("#left").tooltip();
+            $("#middle").tooltip();
 
-          ko.applyBindings(new ActionViewModel());
+            // Make the Knockout.js magic happend
+            ko.applyBindings(new ActionViewModel());
         });
     </script>
 </body>
